@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Doby Temp Mail</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#f3f3f3;
+margin:0;
+padding:20px;
+text-align:center;
+}
+
+.container{
+max-width:500px;
+margin:auto;
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.1);
+text-align:center;
+}
+
+h1{
+margin-top:0;
+}
+
+.email{
+background:#eee;
+padding:10px;
+border-radius:5px;
+word-break:break-all;
+margin:10px 0;
+font-weight:bold;
+}
+
+button{
+padding:10px 15px;
+margin:5px;
+border:none;
+background:#007bff;
+color:white;
+border-radius:5px;
+cursor:pointer;
+}
+
+.inbox{
+margin-top:20px;
+text-align:left;
+}
+
+.message{
+border:1px solid #ddd;
+padding:10px;
+border-radius:5px;
+margin-top:10px;
+cursor:pointer;
+}
+
+.mailbody{
+margin-top:10px;
+background:#fafafa;
+padding:10px;
+border-radius:5px;
+display:none;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Doby Temp Mail</h1>
+
+<div class="email" id="email">Click Generate</div>
+
+<button onclick="createEmail()">Generate Email</button>
+<button onclick="copyEmail()">Copy</button>
+
+<div class="inbox">
+
+<h3>Inbox</h3>
+
+<div id="messages">No messages yet</div>
+
+</div>
+
+</div>
+
+<script>
+
+let token=""
+let email=""
+let password="12345678"
+
+async function createEmail(){
+
+let res=await fetch("https://api.mail.tm/domains")
+let data=await res.json()
+
+let domain=data["hydra:member"][0].domain
+
+let login=Math.random().toString(36).substring(2,10)
+
+email=login+"@"+domain
+
+document.getElementById("email").innerText=email
+
+await fetch("https://api.mail.tm/accounts",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+address:email,
+password:password
+})
+})
+
+let tokenRes=await fetch("https://api.mail.tm/token",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+address:email,
+password:password
+})
+})
+
+let tokenData=await tokenRes.json()
+
+token=tokenData.token
+
+loadMessages()
+
+}
+
+async function loadMessages(){
+
+let res=await fetch("https://api.mail.tm/messages",{
+headers:{
+Authorization:"Bearer "+token
+}
+})
+
+let data=await res.json()
+
+let box=document.getElementById("messages")
+
+box.innerHTML=""
+
+if(data["hydra:member"].length==0){
+box.innerHTML="No messages yet"
+return
+}
+
+data["hydra:member"].forEach(msg=>{
+
+box.innerHTML+=`
+<div class="message" onclick="readMail('${msg.id}')">
+<b>From:</b> ${msg.from.address}<br>
+<b>Subject:</b> ${msg.subject}
+<div id="mail-${msg.id}" class="mailbody"></div>
+</div>
+`
+
+})
+
+}
+
+async function readMail(id){
+
+let res=await fetch("https://api.mail.tm/messages/"+id,{
+headers:{
+Authorization:"Bearer "+token
+}
+})
+
+let data=await res.json()
+
+let box=document.getElementById("mail-"+id)
+
+box.style.display="block"
+
+box.innerHTML=data.text || data.html
+
+}
+
+function copyEmail(){
+
+navigator.clipboard.writeText(email)
+
+alert("Email copied")
+
+}
+
+setInterval(()=>{
+
+if(token){
+loadMessages()
+}
+
+},5000)
+
+</script>
+
+</body>
+
+</html>
